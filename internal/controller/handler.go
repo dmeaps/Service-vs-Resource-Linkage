@@ -11,6 +11,9 @@ func MainRoute(w http.ResponseWriter, r *http.Request) {
 		service.CreateNewAsset(w, r)
 
 	case http.MethodGet:
-		service.GetAsset(w, r)
+		service.GetAssetByName(w, r)
+
+	default:
+		http.Error(w, "Service not available", http.StatusServiceUnavailable)
 	}
 }

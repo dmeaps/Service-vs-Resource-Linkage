@@ -23,13 +23,12 @@ func CreateNewAsset(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid payload for creating asset", http.StatusBadRequest)
 		return
 	}
-	fmt.Println("Payload", payload)
+
 	newAsset := model.AssetModel{
 		ID:        primitive.NewObjectID(),
 		AssetName: payload.AssetName,
 		Link:      payload.Link,
 	}
-	fmt.Println("NEW ASSET COMING", newAsset)
 	ctx, cancel := context.WithTimeout(context.Background(), 4*time.Second)
 	defer cancel()
 
@@ -74,4 +73,32 @@ func GetAsset(w http.ResponseWriter, r *http.Request) {
 
 	json.NewEncoder(w).Encode(asset)
 	fmt.Printf("Retrieved Asset: %+v\n", asset)
+}
+
+func GetAssetByName(w http.ResponseWriter, r *http.Request) {
+	var payload struct {
+		AssetName string `json:"asset_name"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		http.Error(w, "Error decoding body of request", http.StatusBadRequest)
+	}
+
+	if payload.AssetName == "" {
+		http.Error(w, "Cannot fetch links for empty payload", http.StatusBadRequest)
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	assets, err := repository.FindAssetByNameFuzzy(ctx, payload.AssetName)
+
+	if err != nil {
+		http.Error(w, "Error retrieving assets", http.StatusInternalServerError)
+		return
+	}
+
+	json.NewEncoder(w).Encode(assets)
+
 }
