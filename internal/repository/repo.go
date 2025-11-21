@@ -4,6 +4,7 @@ import (
 	"apaul_backend/internal/db"
 	"apaul_backend/internal/model"
 	"context"
+	"regexp"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -27,9 +28,10 @@ func FindAssetByID(ctx context.Context, id primitive.ObjectID) (model.AssetModel
 }
 
 func FindAssetByNameFuzzy(ctx context.Context, name string) ([]model.AssetModel, error) {
+	escaped := regexp.QuoteMeta(name)
 	filter := bson.M{
 		"asset_name": bson.M{
-			"$regex":   name,
+			"$regex":   escaped,
 			"$options": "i",
 		},
 	}

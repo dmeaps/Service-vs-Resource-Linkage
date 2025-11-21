@@ -24,6 +24,9 @@ func CreateNewAsset(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if len(payload.AssetName) == 0 || len(payload.Link) == 0 {
+		http.Error(w, "Payload does not have enough parameters", http.StatusBadRequest)
+	}
 	newAsset := model.AssetModel{
 		ID:        primitive.NewObjectID(),
 		AssetName: payload.AssetName,
@@ -44,7 +47,7 @@ func CreateNewAsset(w http.ResponseWriter, r *http.Request) {
 		"creationTime": time.Now().Format(time.RFC3339),
 	})
 
-	log.Printf("Created Task: %+v\n", insertResult)
+	log.Printf("Created Asset: %+v\n", insertResult)
 }
 
 func GetAsset(w http.ResponseWriter, r *http.Request) {
@@ -76,29 +79,24 @@ func GetAsset(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetAssetByName(w http.ResponseWriter, r *http.Request) {
-	var payload struct {
-		AssetName string `json:"asset_name"`
-	}
-
-	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
-		http.Error(w, "Error decoding body of request", http.StatusBadRequest)
-	}
-
-	if payload.AssetName == "" {
-		http.Error(w, "Cannot fetch links for empty payload", http.StatusBadRequest)
+	assetName := r.URL.Query().Get("assetName")
+	if assetName == "" {
+		http.Error(w, "Missing assetName query parameter", http.StatusBadRequest)
 		return
 	}
+	fmt.Printf("Searching for raw assetName: %q (len=%d)\n", assetName, len(assetName))
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	assets, err := repository.FindAssetByNameFuzzy(ctx, payload.AssetName)
-
+	assets, err := repository.FindAssetByNameFuzzy(ctx, assetName)
 	if err != nil {
 		http.Error(w, "Error retrieving assets", http.StatusInternalServerError)
 		return
 	}
 
-	json.NewEncoder(w).Encode(assets)
-
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"message": "Getting Asset",
+		"assets":  assets,
+	})
 }
