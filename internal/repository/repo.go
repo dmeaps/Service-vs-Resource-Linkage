@@ -5,6 +5,7 @@ import (
 	"apaul_backend/internal/model"
 	"context"
 	"regexp"
+	"strings"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -28,24 +29,42 @@ func FindAssetByID(ctx context.Context, id primitive.ObjectID) (model.AssetModel
 }
 
 func FindAssetByNameFuzzy(ctx context.Context, name string) ([]model.AssetModel, error) {
-	escaped := regexp.QuoteMeta(name)
+	name = strings.TrimSpace(name)
+	name = strings.ToLower(name)
+
+	tokens := regexp.MustCompile(`[-_.\s]+`).Split(name, -1)
+
+	andConditions := []bson.M{}
+
+	for _, token := range tokens {
+		if token == "" {
+			continue
+		}
+
+		escaped := regexp.QuoteMeta(token)
+
+		andConditions = append(andConditions, bson.M{
+			"asset_name": bson.M{
+				"$regex":   escaped,
+				"$options": "i",
+			},
+		})
+	}
+
 	filter := bson.M{
-		"asset_name": bson.M{
-			"$regex":   escaped,
-			"$options": "i",
-		},
+		"$and": andConditions,
 	}
 
 	cursor, err := collection().Find(ctx, filter)
 	if err != nil {
 		return nil, err
 	}
-
 	defer cursor.Close(ctx)
+
 	var results []model.AssetModel
 	if err := cursor.All(ctx, &results); err != nil {
 		return nil, err
 	}
 
-	return results, err
+	return results, nil
 }
